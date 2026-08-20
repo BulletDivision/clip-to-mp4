@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0d1317">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Clip zu MP4">
 <title>Clip zu MP4</title>
 <style>
   :root{
@@ -13,12 +17,15 @@
     --sans:ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;
   }
   *{box-sizing:border-box}
+  [hidden]{display:none!important}
   html,body{margin:0}
   body{
     background:var(--bg); color:var(--ink); font-family:var(--sans);
     padding:max(18px,env(safe-area-inset-top)) 18px calc(28px + env(safe-area-inset-bottom));
     max-width:640px; margin-inline:auto; -webkit-text-size-adjust:100%;
   }
+  .brand{display:flex; align-items:center; gap:10px}
+  .brand svg{width:30px; height:30px; flex:none; color:var(--osd)}
   .eyebrow{font-family:var(--mono); font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--osd)}
   h1{font-size:clamp(28px,9vw,40px); line-height:1; margin:.35em 0 .3em; letter-spacing:-.03em; font-weight:800}
   h1 span{color:var(--dim); font-weight:400}
@@ -43,9 +50,11 @@
   .meta{display:flex; flex-wrap:wrap; gap:6px 14px; font-family:var(--mono); font-size:12px; color:var(--dim)}
   .meta span:first-child{color:var(--ink)}
   .warn{color:var(--osd)}
-  .row{display:flex; gap:10px; margin-top:14px}
+  .prev{display:block; width:100%; margin-top:14px; border-radius:10px; background:#000}
+  .hint{font-family:var(--mono); font-size:12px; color:var(--bad); margin:10px 0 0}
+  .row{display:flex; flex-wrap:wrap; gap:10px; margin-top:14px}
   .btn{
-    flex:1; text-align:center; padding:11px 14px; border-radius:9px; font-size:14.5px; font-weight:600;
+    flex:1 1 30%; text-align:center; padding:11px 14px; border-radius:9px; font-size:14.5px; font-weight:600;
     border:1px solid var(--line); background:transparent; color:var(--ink); text-decoration:none; cursor:pointer;
     font-family:var(--sans);
   }
@@ -56,7 +65,14 @@
 </style>
 </head>
 <body>
-  <p class="eyebrow">Kamera-Aufnahme</p>
+  <div class="brand">
+    <svg viewBox="0 0 100 100" aria-hidden="true" fill="currentColor">
+      <rect x="0" y="34" width="11" height="32" rx="3" opacity=".47"></rect>
+      <rect x="19" y="22" width="11" height="56" rx="3" opacity=".75"></rect>
+      <polygon points="48,11 48,89 100,50"></polygon>
+    </svg>
+    <p class="eyebrow">Kamera-Aufnahme</p>
+  </div>
   <h1>Clip <span>zu</span> MP4</h1>
   <p class="lede">Legt die .265/.264-Dateien der Kamera in ein MP4 um, das jeder Player abspielt. Alles passiert auf dem Handy, nichts wird hochgeladen.</p>
 
@@ -442,8 +458,23 @@ async function convert(file) {
       </div>
       <div class="row">
         <a class="btn primary save" href="${url}" download="${name}">Speichern</a>
+        <button class="btn play">Abspielen</button>
         <button class="btn share" hidden>Teilen</button>
-      </div>`;
+      </div>
+      <video class="prev" controls playsinline preload="none" hidden></video>
+      <p class="hint" hidden>Dieser Browser spielt HEVC nicht ab – speichern und im Player öffnen.</p>`;
+
+    const video = el.querySelector('.prev'), hint = el.querySelector('.hint'), playBtn = el.querySelector('.play');
+    playBtn.addEventListener('click', () => {
+      if (video.hidden) {
+        if (!video.src) video.src = url;
+        video.hidden = false; playBtn.textContent = 'Zuklappen';
+        video.play().catch(() => {});
+      } else {
+        video.pause(); video.hidden = true; playBtn.textContent = 'Abspielen';
+      }
+    });
+    video.addEventListener('error', () => { video.hidden = true; hint.hidden = false; playBtn.hidden = true; });
     // Wenn der Browser einen Ziel-Dialog kann: dorthin, sonst normaler Download
     const saveBtn = el.querySelector('.save');
     if (window.showSaveFilePicker) {
@@ -483,6 +514,32 @@ drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' '
 ['dragover', 'dragenter'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', e => handle([...e.dataTransfer.files]));
+
+// ---- Icon + App-Manifest (damit "Zum Startbildschirm" ein richtiges Logo bekommt) ----
+const ICON192 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAMAAABlApw1AAAAflBMVEUNExfysj4AAAC2iDN4XSgBCRT+vEDsrjyCZCvEkjZjTiVaSCMMExZ+YSpEOSAMEhYpJhwMEhYKFBYMERYMEhYNExc6MR6mfTHAjjWYdC4AADPXoDr/xkMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC7bHvlAAAAIHRSTlP+/wD///////////+S//+u/84YKlBq/////wX//wAAAFwnogEAAAQcSURBVHja7Z2LbqMwEEUngMkDJw4G0rS7//+diyAhsOHVYA9zJa5UqVJbaU45BhOwh4KpZLk2aUrsSVOj82yyPBr9qS30CqV3MHRhPwWwhSERMWMMgwCZJkHR2S8BZJU/htALYMWVXyHYuQAFCU0xC8AaEhtjpwFyEp18CqAg4SnGATSJjx4DMAQQMwyQEkTSIQBDIDH9AJpgovsAgOpvExDI+X/wevAEsAQW+x+AQQMwXYCc4JJ3AAgwbQCNCKBfABlBJmsADCaAeQKAHoD6EBDqCHiOAgI9BTUnIgK4CRu9PSPYIfwYxoQ3C+rOiAhxFtGeTxDuOag+D9FPigyQ/lBG0MkoxwbIqcAGKMhgAxhKsQFSfIAtW7Zs2bJly1AUev03cAR1OF6hCdT57z5R0Ecg3sUHYI1KgP0uBtaoAtjHuBpVALs9rkY1QBlUjRoAVI0aAFSNXgCgGnUAZGqkHpkBIFEjRbc61/7CugACNTqF9/B+L7/C797C3gBkaaSSY/jM8WvWERCm0Vf4yrHvP/sOIEujsA0QzQUQpFEH4DQXQJBGHwLI0ehzACEafQ4gRKMFADI0WgYgQKNlAAI0WgiwvkbLAfg0Um/fOAHg0+gSPZK4BeDSKDk8AQ6RawAGjdS1qb8kuCi3AAwaqUsL4Jw4PgIMGvkH8KyRfwDPGjEA+NWIB8CjRjwAHjViAvCnER+AJ434ADxpxAjgRyNeAA8a8QJ40IgZwL1G/ACONeIHqDRSChig0ugGDVD+oTOLVgFwOY5XGMRuz6TsAK6vZewArmcTzFMJ9/M5VoBSnwv0ZC4OkafTbi/A/AA+9GEF8KEP48cqfvRhA/ClDxuAL32YPtz1pw8LgE99qjpu7QcciXIO4FOfOlFDcPbwiGl3Vt6fkkXnR6LWPNEJwD7+c+N4THl9hFw/pYy/eJ7W971f6eBB924XrfiofjEAlz7eALj08QOwsj6LAdbWZzHA2vosAxCgzzIAAfosApCgz+cA5dznJOTVY/SXv1X0ev3+Hvb+Rg9A/C1oFcfh+Ew4dwGEGH3qXE51EtAlKM0cddYiIGH6zOLrLsMSps9vAdAXwsHp0wFA1KcDgL0cd4+pTwMAvyQdfFMA8G0Z8DfGQN+aBH1zGPjtebZs2bJlyxbv2fbcXRsAfttm+I2z4bcuh988Hn77fvgGCvgtLOCbiMC3ccFvpAPfygi/mRR8Oy/4hmr4Le3gmwrit3XEb6wJ39oUv7ksfHtf/AbL+C2u8ZuM47d5BzkGJhgGQBgHOhgDkH97VgTjANKvB3kwBRBYwQPB2GAaQLBGRU+xfQCBFTmWtQ3mApT3aOIQdNZf6QCANISh8kcASpEKIcPZFHa4yhGAikGvPL1I9Vj1kwCVS7k26QoYaWp0nk2W9w/PI1e4doS/ZAAAAABJRU5ErkJggg==';
+const ICON512 = 'data:image/png;base64,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';
+(() => {
+  const add = (rel, href, sizes) => {
+    const l = document.createElement('link');
+    l.rel = rel; l.href = href; if (sizes) l.sizes = sizes;
+    document.head.appendChild(l);
+  };
+  add('icon', ICON192, '192x192');
+  add('apple-touch-icon', ICON192);
+  try {
+    const mf = {
+      name: 'Clip zu MP4', short_name: 'Clip zu MP4',
+      start_url: location.href.split('#')[0],
+      scope: location.href.replace(/[^/]*$/, ''),
+      display: 'standalone', background_color: '#0d1317', theme_color: '#0d1317',
+      icons: [
+        { src: ICON192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: ICON512, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ],
+    };
+    add('manifest', URL.createObjectURL(new Blob([JSON.stringify(mf)], { type: 'application/manifest+json' })));
+  } catch (e) {}
+})();
 </script>
 </body>
 </html>
